@@ -75,6 +75,19 @@ launchctl unload "$HOME/Library/LaunchAgents/com.jolyi.codex-status-light.plist"
 launchctl load "$HOME/Library/LaunchAgents/com.jolyi.codex-status-light.plist"
 ```
 
+## Red Light
+
+Red means Codex needs you to handle something. It does not only mean a failure.
+
+Common causes:
+
+- Codex is waiting for your confirmation.
+- A permission, login, browser, or input step needs your action.
+- The task failed or hit an error.
+
+The watcher detects common confirmation text from the last Codex message and
+maps it to `attention`.
+
 ## Stuck Green While Codex Is Working
 
 Check whether Codex Desktop is writing rollout logs:

@@ -1,4 +1,5 @@
 import io
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -205,6 +206,40 @@ class DesktopRolloutStateTests(unittest.TestCase):
                 b'{"timestamp":"2026-06-03T07:00:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-1"}}\n'
                 b'{"timestamp":"2026-06-03T07:00:01Z","type":"event_msg","payload":{"type":"turn_aborted","turn_id":"turn-1"}}\n'
             )
+            handle.flush()
+
+            self.assertEqual(read_rollout_file_state(handle.name, now=100.0), "idle")
+
+    def test_completion_after_user_confirmation_request_is_attention(self):
+        message = (
+            "Browser is not available: extension\n\n"
+            "按 Chrome 插件的处理流程，下一步需要你确认一下："
+            "我可以帮你打开一个 Chrome 窗口并重试连接吗？"
+        )
+        records = [
+            {"timestamp": "2026-06-03T07:00:00Z", "type": "event_msg", "payload": {"type": "task_started", "turn_id": "turn-1"}},
+            {"timestamp": "2026-06-03T07:00:01Z", "type": "event_msg", "payload": {"type": "agent_message", "message": message}},
+            {"timestamp": "2026-06-03T07:00:02Z", "type": "event_msg", "payload": {"type": "task_complete", "turn_id": "turn-1", "last_agent_message": message}},
+        ]
+
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            handle.flush()
+
+            self.assertEqual(read_rollout_file_state(handle.name, now=100.0), "attention")
+
+    def test_abort_after_user_confirmation_request_is_idle(self):
+        message = "下一步需要你确认一下：我可以打开 Chrome 窗口吗？"
+        records = [
+            {"timestamp": "2026-06-03T07:00:00Z", "type": "event_msg", "payload": {"type": "task_started", "turn_id": "turn-1"}},
+            {"timestamp": "2026-06-03T07:00:01Z", "type": "event_msg", "payload": {"type": "agent_message", "message": message}},
+            {"timestamp": "2026-06-03T07:00:02Z", "type": "event_msg", "payload": {"type": "turn_aborted", "turn_id": "turn-1"}},
+        ]
+
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
             handle.flush()
 
             self.assertEqual(read_rollout_file_state(handle.name, now=100.0), "idle")

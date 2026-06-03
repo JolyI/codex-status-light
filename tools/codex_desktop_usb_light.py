@@ -27,6 +27,29 @@ SERIAL_PORT_PATTERNS = (
     "/dev/cu.usbserial*",
 )
 VISIBLE_STATES = ("idle", "busy", "attention")
+USER_ATTENTION_KEYWORDS = (
+    "需要你确认",
+    "请确认",
+    "确认一下",
+    "需要你授权",
+    "需要你输入",
+    "需要你登录",
+    "需要你处理",
+    "需要你操作",
+    "需要你介入",
+    "等待你",
+    "等你确认",
+    "browser is not available",
+    "requires your confirmation",
+    "please confirm",
+    "need your confirmation",
+    "need your approval",
+    "need your permission",
+    "need your input",
+    "waiting for you",
+    "waiting for user",
+    "user input required",
+)
 
 
 def classify_desktop_event(body: str) -> Optional[str]:
@@ -250,6 +273,25 @@ def _rollout_payload_type(record: dict) -> Optional[str]:
     return record_type if isinstance(record_type, str) else None
 
 
+def _rollout_payload(record: dict) -> dict:
+    payload = record.get("payload")
+    return payload if isinstance(payload, dict) else {}
+
+
+def needs_user_attention(text: str) -> bool:
+    lowered = (text or "").lower()
+    return any(keyword in lowered for keyword in USER_ATTENTION_KEYWORDS)
+
+
+def _rollout_message_text(record: dict) -> str:
+    payload = _rollout_payload(record)
+    for key in ("message", "last_agent_message"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            return value
+    return ""
+
+
 def read_rollout_file_state(
     path: str,
     now: float,
@@ -262,6 +304,7 @@ def read_rollout_file_state(
 
     last_task_marker = None
     last_payload_type = None
+    last_agent_needs_attention = False
     for record in records:
         payload_type = _rollout_payload_type(record)
         if payload_type is None:
@@ -269,13 +312,24 @@ def read_rollout_file_state(
         last_payload_type = payload_type
         if payload_type == "task_started":
             last_task_marker = "started"
-        elif payload_type in ("task_complete", "turn_aborted", "task_aborted"):
+            last_agent_needs_attention = False
+        elif payload_type == "agent_message":
+            last_agent_needs_attention = needs_user_attention(_rollout_message_text(record))
+        elif payload_type == "task_complete":
+            if needs_user_attention(_rollout_message_text(record)) or last_agent_needs_attention:
+                last_task_marker = "attention"
+                continue
             last_task_marker = "complete"
+        elif payload_type in ("turn_aborted", "task_aborted"):
+            last_task_marker = "complete"
+            last_agent_needs_attention = False
         elif payload_type in ("task_failed", "task_error", "task_errored"):
             return "attention"
 
     if last_task_marker == "started":
         return "busy"
+    if last_task_marker == "attention":
+        return "attention"
     if last_task_marker == "complete":
         return "idle"
 

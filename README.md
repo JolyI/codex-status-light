@@ -11,6 +11,9 @@ busy       yellow slow blink
 attention  red slow blink
 ```
 
+`attention` means Codex needs you to look at it. It covers confirmations,
+permission/input/login prompts, failures, and other blocked states.
+
 The first release is intentionally simple:
 
 - macOS only
@@ -107,6 +110,7 @@ It looks for task lifecycle events:
 ```text
 task_started                  -> busy
 task_complete / turn_aborted  -> idle
+confirmation / permission     -> attention
 task_failed                   -> attention
 ```
 

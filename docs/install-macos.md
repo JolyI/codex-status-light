@@ -56,7 +56,9 @@ python3 tools/codex_desktop_usb_light.py --port auto
 ```
 
 When a Codex Desktop task starts, the light should become yellow. When it
-finishes or is stopped, the light should return to green.
+finishes or is stopped, the light should return to green. When Codex needs
+your confirmation, permission, input, or hits an error, the light should become
+red.
 
 ## 3. Install As A LaunchAgent
 

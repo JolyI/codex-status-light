@@ -10,6 +10,14 @@ The first stable version is intentionally small:
 - Red/yellow/green traffic light module
 - Three visible states: `idle`, `busy`, `attention`
 
+The state meanings stay intentionally simple:
+
+```text
+idle       green solid, no action needed
+busy       yellow slow blink, Codex is working
+attention  red slow blink, Codex needs you
+```
+
 ## V2: LED Strip
 
 The next hardware renderer can reuse the same Mac watcher and serial protocol.
