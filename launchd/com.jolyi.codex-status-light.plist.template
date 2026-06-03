@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jolyi.codex-status-light</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/ABSOLUTE/PATH/TO/codex-status-light/tools/codex_desktop_usb_light.py</string>
+    <string>--poll-seconds</string>
+    <string>0.2</string>
+    <string>--port</string>
+    <string>auto</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/REPLACE_WITH_YOUR_USERNAME/.codex/log/codex-status-light.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/REPLACE_WITH_YOUR_USERNAME/.codex/log/codex-status-light.err.log</string>
+</dict>
+</plist>
