@@ -2,6 +2,8 @@
 
 A USB status light for Codex Desktop, powered by ESP32-C3.
 
+<img src="assets/status-light.png" alt="Codex status light hardware" width="360">
+
 This project turns Codex Desktop activity on macOS into a small physical
 traffic light:
 
@@ -96,6 +98,8 @@ python3 tools/codex_desktop_usb_light.py --port auto
 
 For background startup on macOS, see
 [docs/install-macos.md](docs/install-macos.md).
+
+For direct state checks, see [docs/manual-test.md](docs/manual-test.md).
 
 ## How It Works
 
