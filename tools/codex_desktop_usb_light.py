@@ -18,6 +18,7 @@ DEFAULT_BAUD_RATE = 115200
 DEFAULT_POLL_SECONDS = 0.2
 DEFAULT_SERIAL_OPEN_SETTLE_SECONDS = 0.8
 DEFAULT_IDLE_DEBOUNCE_SECONDS = 1.5
+DEFAULT_RESEND_SECONDS = 2.0
 DEFAULT_BOOTSTRAP_WINDOW_SECONDS = 120
 DEFAULT_MAX_BUSY_SECONDS = 20 * 60
 DEFAULT_UNFINISHED_TASK_STALE_SECONDS = 120
@@ -511,6 +512,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--poll-seconds", type=float, default=DEFAULT_POLL_SECONDS)
     parser.add_argument("--serial-open-settle-seconds", type=float, default=DEFAULT_SERIAL_OPEN_SETTLE_SECONDS)
     parser.add_argument("--idle-debounce-seconds", type=float, default=DEFAULT_IDLE_DEBOUNCE_SECONDS)
+    parser.add_argument("--resend-seconds", type=float, default=DEFAULT_RESEND_SECONDS)
     parser.add_argument("--bootstrap-window-seconds", type=int, default=DEFAULT_BOOTSTRAP_WINDOW_SECONDS)
     parser.add_argument("--max-busy-seconds", type=float, default=DEFAULT_MAX_BUSY_SECONDS)
     parser.add_argument("--unfinished-task-stale-seconds", type=float, default=DEFAULT_UNFINISHED_TASK_STALE_SECONDS)
@@ -549,6 +551,7 @@ def main(argv=None, sender=None) -> int:
         send = sender or send_usb_state
 
     last_sent_state = None
+    last_sent_at = None
     loop_count = 0
 
     try:
@@ -568,8 +571,19 @@ def main(argv=None, sender=None) -> int:
                 for event in events:
                     machine.apply(event, now)
                 state = machine.current_state(now)
-            if state != last_sent_state:
-                print(state, flush=True)
+            state_changed = state != last_sent_state
+            should_send = state_changed
+            if (
+                not should_send
+                and last_sent_at is not None
+                and args.resend_seconds >= 0
+                and now - last_sent_at >= args.resend_seconds
+            ):
+                should_send = True
+
+            if should_send:
+                if state_changed:
+                    print(state, flush=True)
                 if not args.dry_run:
                     try:
                         send(args.port, state, baud_rate=args.baud_rate)
@@ -578,6 +592,7 @@ def main(argv=None, sender=None) -> int:
                         time.sleep(max(args.poll_seconds, 1.0))
                         continue
                 last_sent_state = state
+                last_sent_at = now
 
             if args.once:
                 return 0

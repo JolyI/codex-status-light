@@ -439,6 +439,34 @@ class DesktopUsbLightCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("idle", output.getvalue())
 
+    def test_resends_unchanged_state_when_interval_elapses(self):
+        sent = []
+
+        with tempfile.TemporaryDirectory() as root:
+            missing_db = f"{root}/missing.sqlite"
+            missing_sessions = f"{root}/missing-sessions"
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                code = main(
+                    [
+                        "--logs-db",
+                        missing_db,
+                        "--sessions-dir",
+                        missing_sessions,
+                        "--max-loops",
+                        "3",
+                        "--poll-seconds",
+                        "0",
+                        "--resend-seconds",
+                        "0",
+                    ],
+                    sender=lambda port, state, baud_rate=115200: sent.append((port, state, baud_rate)),
+                )
+
+            self.assertEqual(code, 0)
+            self.assertEqual(sent, [("auto", "idle", 115200), ("auto", "idle", 115200), ("auto", "idle", 115200)])
+
 
 if __name__ == "__main__":
     unittest.main()
