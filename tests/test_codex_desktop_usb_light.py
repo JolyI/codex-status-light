@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import sqlite3
 import tempfile
 import unittest
@@ -223,6 +224,44 @@ class DesktopRolloutStateTests(unittest.TestCase):
             handle.flush()
 
             self.assertEqual(read_rollout_file_state(handle.name, now=100.0), "busy")
+
+    def test_stale_started_without_recent_writes_is_idle(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl") as handle:
+            handle.write(
+                b'{"timestamp":"2026-06-03T07:00:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-1"}}\n'
+            )
+            handle.flush()
+            os.utime(handle.name, (80.0, 80.0))
+
+            self.assertEqual(read_rollout_file_state(handle.name, now=300.0, recent_mtime_window_seconds=5.0), "idle")
+
+    def test_started_then_quiet_confirmation_message_is_attention(self):
+        records = [
+            {"timestamp": "2026-06-03T07:00:00Z", "type": "event_msg", "payload": {"type": "task_started", "turn_id": "turn-1"}},
+            {"timestamp": "2026-06-03T07:00:20Z", "type": "event_msg", "payload": {"type": "agent_message", "message": "确认后我只动一个试点点位。"}},
+        ]
+
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            handle.flush()
+            os.utime(handle.name, (80.0, 80.0))
+
+            self.assertEqual(read_rollout_file_state(handle.name, now=100.0, recent_mtime_window_seconds=5.0), "attention")
+
+    def test_started_then_active_confirmation_message_is_busy(self):
+        records = [
+            {"timestamp": "2026-06-03T07:00:00Z", "type": "event_msg", "payload": {"type": "task_started", "turn_id": "turn-1"}},
+            {"timestamp": "2026-06-03T07:00:20Z", "type": "event_msg", "payload": {"type": "agent_message", "message": "确认后我会继续处理。"}},
+        ]
+
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            handle.flush()
+            os.utime(handle.name, (99.5, 99.5))
+
+            self.assertEqual(read_rollout_file_state(handle.name, now=100.0, recent_mtime_window_seconds=5.0), "busy")
 
     def test_complete_after_started_is_idle(self):
         with tempfile.NamedTemporaryFile(suffix=".jsonl") as handle:

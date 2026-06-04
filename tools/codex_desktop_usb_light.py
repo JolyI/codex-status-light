@@ -20,6 +20,7 @@ DEFAULT_SERIAL_OPEN_SETTLE_SECONDS = 0.8
 DEFAULT_IDLE_DEBOUNCE_SECONDS = 1.5
 DEFAULT_BOOTSTRAP_WINDOW_SECONDS = 120
 DEFAULT_MAX_BUSY_SECONDS = 20 * 60
+DEFAULT_UNFINISHED_TASK_STALE_SECONDS = 120
 SERIAL_PORT_PATTERNS = (
     "/dev/cu.usbmodem*",
     "/dev/cu.SLAB_USBtoUART*",
@@ -37,6 +38,7 @@ USER_ATTENTION_KEYWORDS = (
     "需要你处理",
     "需要你操作",
     "需要你介入",
+    "确认后",
     "等待你",
     "等你确认",
     "browser is not available",
@@ -315,6 +317,7 @@ def read_rollout_file_state(
     now: float,
     tail_max_bytes: int = 128 * 1024,
     recent_mtime_window_seconds: float = 5.0,
+    unfinished_task_stale_seconds: float = DEFAULT_UNFINISHED_TASK_STALE_SECONDS,
 ) -> str:
     records = read_jsonl_tail(path, max_bytes=tail_max_bytes)
     if not records:
@@ -345,7 +348,15 @@ def read_rollout_file_state(
             return "attention"
 
     if last_task_marker == "started":
-        return "busy"
+        try:
+            mtime = Path(path).stat().st_mtime
+        except FileNotFoundError:
+            return "idle"
+        if now - mtime <= recent_mtime_window_seconds:
+            return "busy"
+        if last_agent_needs_attention:
+            return "attention"
+        return "busy" if now - mtime <= unfinished_task_stale_seconds else "idle"
     if last_task_marker == "attention":
         return "attention"
     if last_task_marker == "complete":
@@ -387,6 +398,7 @@ def get_rollout_desktop_state(
     sessions_dir: str,
     now: float,
     active_window_seconds: float = DEFAULT_MAX_BUSY_SECONDS,
+    unfinished_task_stale_seconds: float = DEFAULT_UNFINISHED_TASK_STALE_SECONDS,
 ) -> Optional[str]:
     files = get_recent_rollout_files(
         sessions_dir,
@@ -401,6 +413,7 @@ def get_rollout_desktop_state(
             str(path),
             now=now,
             recent_mtime_window_seconds=DEFAULT_POLL_SECONDS * 4,
+            unfinished_task_stale_seconds=unfinished_task_stale_seconds,
         )
         for path in files
     ]
@@ -500,6 +513,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--idle-debounce-seconds", type=float, default=DEFAULT_IDLE_DEBOUNCE_SECONDS)
     parser.add_argument("--bootstrap-window-seconds", type=int, default=DEFAULT_BOOTSTRAP_WINDOW_SECONDS)
     parser.add_argument("--max-busy-seconds", type=float, default=DEFAULT_MAX_BUSY_SECONDS)
+    parser.add_argument("--unfinished-task-stale-seconds", type=float, default=DEFAULT_UNFINISHED_TASK_STALE_SECONDS)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--max-loops", type=int)
     parser.add_argument("--dry-run", action="store_true")
@@ -545,6 +559,7 @@ def main(argv=None, sender=None) -> int:
                 args.sessions_dir,
                 now=now,
                 active_window_seconds=args.max_busy_seconds,
+                unfinished_task_stale_seconds=args.unfinished_task_stale_seconds,
             )
             if rollout_state is not None:
                 state = rollout_state
