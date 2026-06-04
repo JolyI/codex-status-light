@@ -179,6 +179,40 @@ class DesktopLogQueryTests(unittest.TestCase):
             self.assertEqual(state, "busy")
             self.assertEqual(last_id, 2)
 
+    def test_unopenable_sqlite_fallback_does_not_crash_initial_state(self):
+        with tempfile.TemporaryDirectory() as root:
+            state, last_id = get_initial_desktop_state(root, now=100, window_seconds=30)
+
+            self.assertEqual(state, "idle")
+            self.assertEqual(last_id, 0)
+
+    def test_unopenable_sqlite_fallback_does_not_crash_new_events(self):
+        with tempfile.TemporaryDirectory() as root:
+            events, last_id = get_new_desktop_events(root, last_id=42)
+
+            self.assertEqual(events, [])
+            self.assertEqual(last_id, 42)
+
+    def test_invalid_sqlite_fallback_does_not_crash_initial_state(self):
+        with tempfile.NamedTemporaryFile(suffix=".sqlite") as handle:
+            handle.write(b"not a sqlite database")
+            handle.flush()
+
+            state, last_id = get_initial_desktop_state(handle.name, now=100, window_seconds=30)
+
+            self.assertEqual(state, "idle")
+            self.assertEqual(last_id, 0)
+
+    def test_invalid_sqlite_fallback_does_not_crash_new_events(self):
+        with tempfile.NamedTemporaryFile(suffix=".sqlite") as handle:
+            handle.write(b"not a sqlite database")
+            handle.flush()
+
+            events, last_id = get_new_desktop_events(handle.name, last_id=42)
+
+            self.assertEqual(events, [])
+            self.assertEqual(last_id, 42)
+
 
 class DesktopRolloutStateTests(unittest.TestCase):
     def test_started_without_complete_is_busy(self):

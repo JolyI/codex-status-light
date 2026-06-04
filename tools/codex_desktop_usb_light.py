@@ -164,10 +164,16 @@ def get_last_log_id(logs_db_path: str) -> int:
     if not _logs_db_exists(logs_db_path):
         return 0
 
-    conn = _connect_logs_db(logs_db_path)
+    try:
+        conn = _connect_logs_db(logs_db_path)
+    except sqlite3.Error:
+        return 0
+
     try:
         row = conn.execute("select coalesce(max(id), 0) from logs").fetchone()
         return int(row[0]) if row else 0
+    except sqlite3.Error:
+        return 0
     finally:
         conn.close()
 
@@ -176,7 +182,11 @@ def get_new_desktop_events(logs_db_path: str, last_id: int, limit: int = 200) ->
     if not _logs_db_exists(logs_db_path):
         return [], last_id
 
-    conn = _connect_logs_db(logs_db_path)
+    try:
+        conn = _connect_logs_db(logs_db_path)
+    except sqlite3.Error:
+        return [], last_id
+
     try:
         rows = conn.execute(
             f"""
@@ -190,6 +200,8 @@ def get_new_desktop_events(logs_db_path: str, last_id: int, limit: int = 200) ->
             """,
             (last_id, limit),
         ).fetchall()
+    except sqlite3.Error:
+        return [], last_id
     finally:
         conn.close()
 
@@ -211,7 +223,11 @@ def get_initial_desktop_state(
     if not _logs_db_exists(logs_db_path):
         return "idle", 0
 
-    conn = _connect_logs_db(logs_db_path)
+    try:
+        conn = _connect_logs_db(logs_db_path)
+    except sqlite3.Error:
+        return "idle", 0
+
     try:
         last_row = conn.execute("select coalesce(max(id), 0) from logs").fetchone()
         last_id = int(last_row[0]) if last_row else 0
@@ -226,6 +242,8 @@ def get_initial_desktop_state(
             """,
             (int(now - window_seconds),),
         ).fetchall()
+    except sqlite3.Error:
+        return "idle", 0
     finally:
         conn.close()
 
