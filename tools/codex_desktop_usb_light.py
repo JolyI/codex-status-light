@@ -458,7 +458,11 @@ class PersistentUsbStateSender:
         if state not in VISIBLE_STATES:
             raise ValueError(f"Unsupported state: {state}")
         self.open()
-        self.handle.write(f"{state}\n".encode("utf-8"))
+        try:
+            self.handle.write(f"{state}\n".encode("utf-8"))
+        except Exception:
+            self.close()
+            raise
 
     def close(self) -> None:
         if self.handle is None:

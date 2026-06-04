@@ -305,6 +305,31 @@ class DesktopUsbLightCliTests(unittest.TestCase):
         self.assertEqual(writes, [b"busy\n", b"idle\n"])
         self.assertEqual(closes, [True])
 
+    def test_persistent_usb_sender_closes_stale_handle_after_write_failure(self):
+        closes = []
+
+        class FailingHandle:
+            def write(self, _payload):
+                raise OSError(6, "Device not configured")
+
+            def close(self):
+                closes.append(True)
+
+        sender = PersistentUsbStateSender(
+            port="auto",
+            baud_rate=115200,
+            open_settle_seconds=0,
+            port_resolver=lambda port: "/dev/test",
+            configurator=lambda port, baud_rate: None,
+            opener=lambda path, mode, buffering=0: FailingHandle(),
+        )
+
+        with self.assertRaises(OSError):
+            sender.send("busy")
+
+        self.assertEqual(closes, [True])
+        self.assertIsNone(sender.handle)
+
     def test_once_dry_run_prints_initial_state(self):
         with tempfile.NamedTemporaryFile(suffix=".sqlite") as handle:
             conn = sqlite3.connect(handle.name)
