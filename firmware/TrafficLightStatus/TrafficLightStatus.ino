@@ -48,20 +48,8 @@ const char *statusToText(Status status) {
 }
 
 void showStatus(Status status, unsigned long now) {
-  switch (status) {
-    case Status::Idle:
-      setLights(false, false, true);
-      break;
-    case Status::Busy:
-      setLights(false, (now / STATUS_BLINK_MS) % 2 == 0, false);
-      break;
-    case Status::Attention:
-      setLights((now / STATUS_BLINK_MS) % 2 == 0, false, false);
-      break;
-    case Status::Unknown:
-      setLights(false, false, false);
-      break;
-  }
+  LightState lights = resolveStatusLights(status, now, STATUS_BLINK_MS);
+  setLights(lights.red, lights.yellow, lights.green);
 }
 
 void applyStatus(Status parsed) {

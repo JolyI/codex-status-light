@@ -9,6 +9,12 @@ enum class Status {
   Attention,
 };
 
+struct LightState {
+  bool red;
+  bool yellow;
+  bool green;
+};
+
 inline bool isSpaceChar(char value) {
   return value == ' ' || value == '\t' || value == '\r' || value == '\n';
 }
@@ -73,4 +79,19 @@ inline Status parseStatus(const char *rawText) {
     return Status::Attention;
   }
   return Status::Unknown;
+}
+
+inline LightState resolveStatusLights(Status status, unsigned long now, unsigned long blinkMs) {
+  switch (status) {
+    case Status::Idle:
+      return {false, false, true};
+    case Status::Busy:
+      return {false, true, false};
+    case Status::Attention:
+      return {(now / blinkMs) % 2 == 0, false, false};
+    case Status::Unknown:
+      return {false, false, false};
+  }
+
+  return {false, false, false};
 }

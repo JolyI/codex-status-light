@@ -38,7 +38,7 @@ Expected result:
 
 ```text
 idle       green solid
-busy       yellow slow blink
+busy       yellow solid
 attention  red slow blink
 ```
 
@@ -60,7 +60,7 @@ python3 tools/codex_desktop_usb_light.py --port auto
 Start a Codex Desktop task and watch the light:
 
 ```text
-working       -> yellow slow blink
+working       -> yellow solid
 waiting input -> red slow blink
 idle          -> green solid
 ```

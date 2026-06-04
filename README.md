@@ -8,7 +8,7 @@
 
 ```text
 idle       绿灯常亮
-busy       黄灯慢闪
+busy       黄灯常亮
 attention  红灯慢闪
 ```
 

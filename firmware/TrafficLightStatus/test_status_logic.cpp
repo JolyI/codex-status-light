@@ -14,6 +14,16 @@ int main() {
   assert(parseStatus("offline") == Status::Attention);
   assert(parseStatus("unknown") == Status::Unknown);
 
+  LightState busyStart = resolveStatusLights(Status::Busy, 0, 1200);
+  assert(!busyStart.red);
+  assert(busyStart.yellow);
+  assert(!busyStart.green);
+
+  LightState busyLater = resolveStatusLights(Status::Busy, 1200, 1200);
+  assert(!busyLater.red);
+  assert(busyLater.yellow);
+  assert(!busyLater.green);
+
   char text[] = "  thinking\r\n";
   trimInPlace(text);
   assert(std::strcmp(text, "thinking") == 0);

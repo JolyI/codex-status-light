@@ -29,6 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Run firmware logic tests
+        run: |
+          g++ -std=c++17 -I firmware/TrafficLightStatus firmware/TrafficLightStatus/test_status_logic.cpp -o /tmp/test_status_logic
+          /tmp/test_status_logic
+
       - name: Set up Arduino CLI
         uses: arduino/setup-arduino-cli@v2
 

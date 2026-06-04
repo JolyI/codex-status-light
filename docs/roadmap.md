@@ -14,7 +14,7 @@ The state meanings stay intentionally simple:
 
 ```text
 idle       green solid, no action needed
-busy       yellow slow blink, Codex is working
+busy       yellow solid, Codex is working
 attention  red slow blink, Codex needs you
 ```
 
