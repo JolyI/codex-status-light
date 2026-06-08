@@ -1,7 +1,8 @@
 # Manual Test
 
-Use this guide when you want to test the ESP32-C3 and traffic light module
-without running Codex Desktop.
+Use this guide when you want to test the ESP32-C3 light without running Codex
+Desktop. It works for both the traffic light firmware and the WS2812B LED strip
+firmware.
 
 ## 1. Find The Serial Port
 
@@ -28,18 +29,33 @@ is not connected correctly.
 Replace `/dev/cu.usbmodem11201` with your actual port:
 
 ```bash
-stty -f /dev/cu.usbmodem11201 115200 raw -echo
-printf 'idle\n' > /dev/cu.usbmodem11201
-printf 'busy\n' > /dev/cu.usbmodem11201
-printf 'attention\n' > /dev/cu.usbmodem11201
+python3 - <<'PY'
+import time
+from tools.codex_desktop_usb_light import PersistentUsbStateSender
+
+sender = PersistentUsbStateSender("/dev/cu.usbmodem11201", open_settle_seconds=1.5)
+for state, seconds in [("idle", 4), ("busy", 12), ("attention", 6), ("idle", 4)]:
+    sender.send(state)
+    print("sent", state)
+    time.sleep(seconds)
+sender.close()
+PY
 ```
 
-Expected result:
+Expected traffic light result:
 
 ```text
 idle       green solid
 busy       yellow solid
 attention  red slow blink
+```
+
+Expected WS2812B LED strip result:
+
+```text
+idle       teal slow breathing
+busy       cyan/blue/purple/magenta comet chase
+attention  amber double pulse
 ```
 
 ## 3. Test The Watcher Without USB
@@ -60,9 +76,9 @@ python3 tools/codex_desktop_usb_light.py --port auto
 Start a Codex Desktop task and watch the light:
 
 ```text
-working       -> yellow solid
-waiting input -> red slow blink
-idle          -> green solid
+working       -> busy
+waiting input -> attention
+idle          -> idle
 ```
 
 Stop with `Ctrl+C` when the test is finished.

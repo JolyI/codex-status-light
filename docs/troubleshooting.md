@@ -42,6 +42,8 @@ python3 tools/codex_desktop_usb_light.py --port auto --once
 
 If the command prints a state but the light does not change, recheck wiring:
 
+Traffic light:
+
 ```text
 R -> GPIO3
 Y -> GPIO4
@@ -49,14 +51,27 @@ G -> GPIO5
 GND -> GND
 ```
 
+WS2812B LED strip:
+
+```text
+ESP32-C3 GPIO3 -> 330 ohm to 470 ohm resistor -> DIN / Data
+ESP32-C3 GND   -> LED strip GND
+External 5V    -> LED strip 5V
+External GND   -> LED strip GND
+```
+
+For WS2812B, make sure the external power supply ground, ESP32-C3 ground, and
+LED strip ground are connected together.
+
 ## Yellow Appears Late
 
 The watcher should keep the serial port open. If another script repeatedly
 opens and closes the ESP32-C3 serial port, the board may reset and the light can
 lag.
 
-Use the USB-only firmware in `firmware/TrafficLightStatus`. Avoid older
-test firmware with Wi-Fi setup or long startup demos when testing live status.
+Use the USB-only firmware in `firmware/TrafficLightStatus` or
+`firmware/LedStripStatus`. Avoid older test firmware with Wi-Fi setup or long
+startup demos when testing live status.
 
 ## Stuck Yellow After Stopping A Task
 

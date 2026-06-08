@@ -32,11 +32,18 @@ print("\n".join(ports) if ports else "<no usb serial>")
 PY
 ```
 
-Compile and upload:
+Compile and upload the traffic light firmware:
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32c3 firmware/TrafficLightStatus
-arduino-cli upload -p /dev/cu.usbmodem11201 --fqbn esp32:esp32:esp32c3 firmware/TrafficLightStatus
+arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc firmware/TrafficLightStatus
+arduino-cli upload -p /dev/cu.usbmodem11201 --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc firmware/TrafficLightStatus
+```
+
+Or compile and upload the WS2812B LED strip firmware:
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc firmware/LedStripStatus
+arduino-cli upload -p /dev/cu.usbmodem11201 --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc firmware/LedStripStatus
 ```
 
 Replace `/dev/cu.usbmodem11201` with your port.
@@ -55,10 +62,10 @@ Run against USB:
 python3 tools/codex_desktop_usb_light.py --port auto
 ```
 
-When a Codex Desktop task starts, the light should become yellow. When it
-finishes or is stopped, the light should return to green. When Codex needs
+When a Codex Desktop task starts, the light should become `busy`. When it
+finishes or is stopped, the light should return to `idle`. When Codex needs
 your confirmation, permission, input, or hits an error, the light should become
-red.
+`attention`.
 
 ## 3. Install As A LaunchAgent
 
@@ -114,10 +121,17 @@ tail -f "$HOME/.codex/log/codex-status-light.err.log"
 If the watcher is not running, you can manually send states:
 
 ```bash
-stty -f /dev/cu.usbmodem11201 115200 raw -echo
-printf 'busy\n' > /dev/cu.usbmodem11201
-printf 'idle\n' > /dev/cu.usbmodem11201
-printf 'attention\n' > /dev/cu.usbmodem11201
+python3 - <<'PY'
+import time
+from tools.codex_desktop_usb_light import PersistentUsbStateSender
+
+sender = PersistentUsbStateSender("/dev/cu.usbmodem11201", open_settle_seconds=1.5)
+for state, seconds in [("busy", 8), ("idle", 4), ("attention", 6), ("idle", 4)]:
+    sender.send(state)
+    print("sent", state)
+    time.sleep(seconds)
+sender.close()
+PY
 ```
 
 Opening the serial port can reset some ESP32-C3 boards. The watcher keeps the

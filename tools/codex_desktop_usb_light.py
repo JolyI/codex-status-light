@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import glob
 import json
 import sqlite3
+import struct
 import subprocess
 import sys
+import termios
 import time
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
@@ -19,6 +22,7 @@ DEFAULT_POLL_SECONDS = 0.2
 DEFAULT_SERIAL_OPEN_SETTLE_SECONDS = 0.8
 DEFAULT_IDLE_DEBOUNCE_SECONDS = 1.5
 DEFAULT_RESEND_SECONDS = 2.0
+DEFAULT_ACTIVE_WRITE_BUSY_SECONDS = 10.0
 DEFAULT_BOOTSTRAP_WINDOW_SECONDS = 120
 DEFAULT_MAX_BUSY_SECONDS = 20 * 60
 DEFAULT_UNFINISHED_TASK_STALE_SECONDS = 120
@@ -400,6 +404,7 @@ def get_rollout_desktop_state(
     now: float,
     active_window_seconds: float = DEFAULT_MAX_BUSY_SECONDS,
     unfinished_task_stale_seconds: float = DEFAULT_UNFINISHED_TASK_STALE_SECONDS,
+    active_write_busy_seconds: float = DEFAULT_ACTIVE_WRITE_BUSY_SECONDS,
 ) -> Optional[str]:
     files = get_recent_rollout_files(
         sessions_dir,
@@ -413,7 +418,7 @@ def get_rollout_desktop_state(
         read_rollout_file_state(
             str(path),
             now=now,
-            recent_mtime_window_seconds=DEFAULT_POLL_SECONDS * 4,
+            recent_mtime_window_seconds=active_write_busy_seconds,
             unfinished_task_stale_seconds=unfinished_task_stale_seconds,
         )
         for path in files
@@ -447,12 +452,28 @@ def configure_serial_port(port: str, baud_rate: int = DEFAULT_BAUD_RATE) -> None
     subprocess.run(["stty", "-f", port, str(baud_rate), "raw", "-echo"], check=True)
 
 
+def set_serial_modem_lines(handle) -> None:
+    fileno = getattr(handle, "fileno", None)
+    if fileno is None:
+        return
+
+    dtr = getattr(termios, "TIOCM_DTR", None)
+    rts = getattr(termios, "TIOCM_RTS", None)
+    bis = getattr(termios, "TIOCMBIS", None)
+    if dtr is None or rts is None or bis is None:
+        return
+
+    flags = struct.pack("I", dtr | rts)
+    fcntl.ioctl(fileno(), bis, flags)
+
+
 def send_usb_state(port: str, state: str, baud_rate: int = DEFAULT_BAUD_RATE) -> None:
     if state not in VISIBLE_STATES:
         raise ValueError(f"Unsupported state: {state}")
     resolved_port = resolve_serial_port(port)
     configure_serial_port(resolved_port, baud_rate)
     with open(resolved_port, "wb", buffering=0) as handle:
+        set_serial_modem_lines(handle)
         handle.write(f"{state}\n".encode("utf-8"))
 
 
@@ -466,6 +487,7 @@ class PersistentUsbStateSender:
         configurator=None,
         opener=None,
         sleeper=None,
+        modem_line_setter=None,
     ):
         self.port = port
         self.baud_rate = baud_rate
@@ -474,6 +496,7 @@ class PersistentUsbStateSender:
         self.configurator = configurator or configure_serial_port
         self.opener = opener or open
         self.sleeper = sleeper or time.sleep
+        self.modem_line_setter = modem_line_setter or set_serial_modem_lines
         self.resolved_port = None
         self.handle = None
 
@@ -483,6 +506,7 @@ class PersistentUsbStateSender:
         self.resolved_port = self.port_resolver(self.port)
         self.configurator(self.resolved_port, self.baud_rate)
         self.handle = self.opener(self.resolved_port, "wb", buffering=0)
+        self.modem_line_setter(self.handle)
         if self.open_settle_seconds > 0:
             self.sleeper(self.open_settle_seconds)
 
@@ -513,6 +537,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--serial-open-settle-seconds", type=float, default=DEFAULT_SERIAL_OPEN_SETTLE_SECONDS)
     parser.add_argument("--idle-debounce-seconds", type=float, default=DEFAULT_IDLE_DEBOUNCE_SECONDS)
     parser.add_argument("--resend-seconds", type=float, default=DEFAULT_RESEND_SECONDS)
+    parser.add_argument("--active-write-busy-seconds", type=float, default=DEFAULT_ACTIVE_WRITE_BUSY_SECONDS)
     parser.add_argument("--bootstrap-window-seconds", type=int, default=DEFAULT_BOOTSTRAP_WINDOW_SECONDS)
     parser.add_argument("--max-busy-seconds", type=float, default=DEFAULT_MAX_BUSY_SECONDS)
     parser.add_argument("--unfinished-task-stale-seconds", type=float, default=DEFAULT_UNFINISHED_TASK_STALE_SECONDS)
@@ -563,6 +588,7 @@ def main(argv=None, sender=None) -> int:
                 now=now,
                 active_window_seconds=args.max_busy_seconds,
                 unfinished_task_stale_seconds=args.unfinished_task_stale_seconds,
+                active_write_busy_seconds=args.active_write_busy_seconds,
             )
             if rollout_state is not None:
                 state = rollout_state

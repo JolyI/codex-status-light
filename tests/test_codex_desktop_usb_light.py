@@ -341,6 +341,17 @@ class DesktopRolloutStateTests(unittest.TestCase):
 
             self.assertEqual(get_rollout_desktop_state(root, now=100.0, active_window_seconds=999999), "busy")
 
+    def test_rollout_state_keeps_recent_active_writes_busy_without_task_marker(self):
+        with tempfile.TemporaryDirectory() as root:
+            busy_path = f"{root}/rollout-busy.jsonl"
+            with open(busy_path, "wb") as handle:
+                handle.write(
+                    b'{"timestamp":"2026-06-03T07:00:01Z","type":"response_item","payload":{"type":"reasoning"}}\n'
+                )
+            os.utime(busy_path, (97.0, 97.0))
+
+            self.assertEqual(get_rollout_desktop_state(root, now=100.0, active_window_seconds=999999), "busy")
+
 
 class DesktopUsbLightCliTests(unittest.TestCase):
     def test_persistent_usb_sender_keeps_one_open_handle(self):
@@ -348,6 +359,7 @@ class DesktopUsbLightCliTests(unittest.TestCase):
         closes = []
         opens = []
         configs = []
+        modem_lines = []
 
         class FakeHandle:
             def write(self, payload):
@@ -367,6 +379,7 @@ class DesktopUsbLightCliTests(unittest.TestCase):
             port_resolver=lambda port: "/dev/test",
             configurator=lambda port, baud_rate: configs.append((port, baud_rate)),
             opener=fake_open,
+            modem_line_setter=lambda handle: modem_lines.append(handle),
         )
 
         sender.send("busy")
@@ -375,6 +388,7 @@ class DesktopUsbLightCliTests(unittest.TestCase):
 
         self.assertEqual(opens, [("/dev/test", "wb", 0)])
         self.assertEqual(configs, [("/dev/test", 115200)])
+        self.assertEqual(len(modem_lines), 1)
         self.assertEqual(writes, [b"busy\n", b"idle\n"])
         self.assertEqual(closes, [True])
 

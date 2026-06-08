@@ -4,10 +4,13 @@
 
 - ESP32-C3 development board
 - Red/yellow/green traffic light LED module
+- WS2812B 5V LED strip
 - 2.54mm female-to-female Dupont wires
 - USB-C cable with data support
+- 330 ohm resistor for the WS2812B data line
+- External 5V power supply for the WS2812B strip
 
-## Pin Mapping
+## Traffic Light Pin Mapping
 
 The tested traffic light module exposes four pins:
 
@@ -55,9 +58,28 @@ Many traffic light modules already include resistors on the board. If your
 module is a bare LED without onboard resistors, add a current-limiting resistor
 for each LED channel.
 
-For WS2812B LED strips, use a 330 ohm to 470 ohm resistor on the data line.
-That is for the future LED strip version, not required for the tested traffic
-light module.
+For WS2812B LED strips, use a 330 ohm to 470 ohm resistor on the data line:
+
+```text
+ESP32-C3 GPIO3 -> resistor -> WS2812B DIN / Data
+```
+
+## WS2812B LED Strip Wiring
+
+The tested LED strip firmware uses GPIO3 and 30 LEDs by default:
+
+```text
+External 5V positive -> LED strip 5V / red wire
+External 5V negative -> LED strip GND / thick black wire
+
+ESP32-C3 GND        -> LED strip GND / white or black wire
+ESP32-C3 GPIO3      -> 330 ohm resistor -> LED strip DIN / Data / green wire
+
+Computer USB-C cable -> ESP32-C3
+```
+
+The external power supply ground, ESP32-C3 ground, and LED strip ground must be
+connected together. Do not power the full LED strip from the ESP32-C3 `5V` pin.
 
 ## USB Cable
 

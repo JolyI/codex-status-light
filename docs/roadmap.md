@@ -20,23 +20,22 @@ attention  red slow blink, Codex needs you
 
 ## V2: LED Strip
 
-The next hardware renderer can reuse the same Mac watcher and serial protocol.
-Only the ESP32 renderer needs to change.
+The LED strip renderer reuses the same Mac watcher and serial protocol. Only
+the ESP32 renderer changes.
 
-Candidate hardware:
+Tested hardware:
 
 - WS2812B LED strip
-- WS2812B LED ring
 - 330 ohm to 470 ohm resistor on the data line
 - External 5V power supply for larger strips
 - Shared ground between ESP32 and LED power supply
 
-Possible effects:
+Default effects:
 
 ```text
-idle       dim green or soft breathing
-busy       yellow moving pulse
-attention  red heartbeat
+idle       teal slow breathing
+busy       cyan/blue/purple/magenta comet chase
+attention  amber double pulse
 ```
 
 ## Optional Wi-Fi Transport
