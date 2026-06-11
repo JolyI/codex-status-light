@@ -18,3 +18,4 @@ tests/test_codex_light_watch.py
 build/
 dist/
 *.egg-info/
+firmware/LedStripStatus/WifiSecrets.h

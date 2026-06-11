@@ -143,6 +143,16 @@ arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc firmware/TrafficLig
 arduino-cli upload -p /dev/cu.usbmodem11401 --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc firmware/TrafficLightStatus
 ```
 
+### 可选：启用 Wi-Fi 模式
+
+如果想让灯条只接电源、不插 Mac 也能工作，先复制示例配置：
+
+```bash
+cp firmware/LedStripStatus/WifiSecrets.example.h firmware/LedStripStatus/WifiSecrets.h
+```
+
+然后编辑 `firmware/LedStripStatus/WifiSecrets.h`，填入家里 2.4GHz Wi-Fi 名称和密码。真实的 `WifiSecrets.h` 已被 `.gitignore` 忽略，不要提交。
+
 ### 上传 WS2812B 灯条固件
 
 如果你的灯条不是 30 颗，先修改 [firmware/LedStripStatus/LedStripStatus.ino](firmware/LedStripStatus/LedStripStatus.ino) 里的：
