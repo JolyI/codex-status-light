@@ -559,6 +559,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sessions-dir", default=DEFAULT_SESSIONS_DIR)
     parser.add_argument("--port", default=DEFAULT_PORT)
     parser.add_argument("--baud-rate", type=int, default=DEFAULT_BAUD_RATE)
+    parser.add_argument("--transport", choices=("usb", "udp"), default="usb")
+    parser.add_argument("--udp-host", default=DEFAULT_UDP_HOST)
+    parser.add_argument("--udp-port", type=int, default=DEFAULT_UDP_PORT)
     parser.add_argument("--poll-seconds", type=float, default=DEFAULT_POLL_SECONDS)
     parser.add_argument("--serial-open-settle-seconds", type=float, default=DEFAULT_SERIAL_OPEN_SETTLE_SECONDS)
     parser.add_argument("--idle-debounce-seconds", type=float, default=DEFAULT_IDLE_DEBOUNCE_SECONDS)
@@ -573,7 +576,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv=None, sender=None) -> int:
+def main(argv=None, sender=None, udp_sender_factory=UdpStateSender) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -590,11 +593,14 @@ def main(argv=None, sender=None) -> int:
     )
     persistent_sender = None
     if sender is None and not args.dry_run:
-        persistent_sender = PersistentUsbStateSender(
-            args.port,
-            args.baud_rate,
-            open_settle_seconds=args.serial_open_settle_seconds,
-        )
+        if args.transport == "udp":
+            persistent_sender = udp_sender_factory(args.udp_host, args.udp_port)
+        else:
+            persistent_sender = PersistentUsbStateSender(
+                args.port,
+                args.baud_rate,
+                open_settle_seconds=args.serial_open_settle_seconds,
+            )
 
         def send(port, state, baud_rate=DEFAULT_BAUD_RATE):
             persistent_sender.send(state)

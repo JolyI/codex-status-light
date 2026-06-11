@@ -398,6 +398,49 @@ class UdpStateSenderTests(unittest.TestCase):
             sender.send("rainbow")
 
 
+class MainTransportSelectionTests(unittest.TestCase):
+    def test_once_udp_transport_uses_configured_udp_sender_and_closes_it(self):
+        sent = []
+
+        class FakeUdpSender:
+            def __init__(self, host, port):
+                self.host = host
+                self.port = port
+
+            def send(self, state):
+                sent.append((self.host, self.port, state))
+
+            def close(self):
+                sent.append(("closed", self.host, self.port))
+
+        with tempfile.TemporaryDirectory() as root:
+            result = main(
+                [
+                    "--logs-db",
+                    f"{root}/missing.sqlite",
+                    "--sessions-dir",
+                    f"{root}/missing-sessions",
+                    "--once",
+                    "--transport",
+                    "udp",
+                    "--udp-host",
+                    "192.168.1.255",
+                    "--udp-port",
+                    "37651",
+                ],
+                udp_sender_factory=FakeUdpSender,
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            sent,
+            [
+                ("192.168.1.255", 37651, "idle"),
+                ("closed", "192.168.1.255", 37651),
+            ],
+        )
+
+
 class DesktopUsbLightCliTests(unittest.TestCase):
 
     def test_persistent_usb_sender_keeps_one_open_handle(self):
