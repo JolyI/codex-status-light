@@ -39,6 +39,14 @@ arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc firmware/TrafficLig
 arduino-cli upload -p /dev/cu.usbmodem11201 --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc firmware/TrafficLightStatus
 ```
 
+如果 WS2812B 灯条需要启用 Wi-Fi，先复制 Wi-Fi 配置示例：
+
+```bash
+cp firmware/LedStripStatus/WifiSecrets.example.h firmware/LedStripStatus/WifiSecrets.h
+```
+
+然后编辑 `firmware/LedStripStatus/WifiSecrets.h`，填入家里 2.4GHz Wi-Fi 名称和密码。不创建 `WifiSecrets.h` 时，USB 仍然是默认通信方式，Wi-Fi 不会启用。
+
 Or compile and upload the WS2812B LED strip firmware:
 
 ```bash
@@ -101,6 +109,26 @@ REPLACE_WITH_YOUR_USERNAME
 ```
 
 with the absolute path to this project and your macOS username.
+
+如果继续使用 USB 模式，不需要修改 plist 里的默认参数。如需 Wi-Fi，加载前先改 `ProgramArguments`：把 plist 中的：
+
+```xml
+<string>--port</string>
+<string>auto</string>
+```
+
+改成：
+
+```xml
+<string>--transport</string>
+<string>udp</string>
+<string>--udp-host</string>
+<string>255.255.255.255</string>
+<string>--udp-port</string>
+<string>37650</string>
+```
+
+Mac 和 ESP32-C3 需要在同一个 2.4GHz Wi-Fi / 局域网内，并且灯条固件已按上面的步骤启用 Wi-Fi。
 
 Load it:
 

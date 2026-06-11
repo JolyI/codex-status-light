@@ -182,6 +182,14 @@ python3 tools/codex_desktop_usb_light.py --once --dry-run
 python3 tools/codex_desktop_usb_light.py --port auto
 ```
 
+如果灯条刷入了启用 Wi-Fi 的 `LedStripStatus` 固件，也可以通过 Wi-Fi UDP 控制：
+
+```bash
+python3 tools/codex_desktop_usb_light.py --transport udp --udp-host 255.255.255.255 --udp-port 37650
+```
+
+Wi-Fi 模式要求 Mac 和 ESP32-C3 连接在同一个 2.4GHz Wi-Fi / 局域网内；灯条仍然需要稳定的外部 5V 供电。
+
 如果要在 macOS 后台常驻运行，见 [docs/install-macos.md](docs/install-macos.md)。
 
 如果只想手动测试灯是否能切换状态，见 [docs/manual-test.md](docs/manual-test.md)。

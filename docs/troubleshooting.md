@@ -63,6 +63,23 @@ External GND   -> LED strip GND
 For WS2812B, make sure the external power supply ground, ESP32-C3 ground, and
 LED strip ground are connected together.
 
+## Wi-Fi 灯条无反应
+
+Wi-Fi 模式只适用于刷入启用 Wi-Fi 的 `firmware/LedStripStatus` 固件的灯条。先确认 watcher 参数正在使用 UDP：
+
+```bash
+python3 tools/codex_desktop_usb_light.py --transport udp --udp-host 255.255.255.255 --udp-port 37650 --once
+```
+
+如果命令能正常运行但灯条不变，按顺序检查：
+
+- 灯条有稳定的外部 5V 供电，ESP32-C3 也已正常上电。
+- ESP32-C3 连接的是 2.4GHz Wi-Fi；ESP32-C3 通常不能连接 5GHz-only 网络。
+- Mac 和 ESP32-C3 在同一个局域网内，没有连到访客网络、隔离网络或不同 VLAN。
+- 路由器允许局域网广播 / UDP 广播，没有开启 AP isolation、客户端隔离或类似限制。
+- Mac 防火墙、网络安全软件或公司网络策略没有拦截 Python / watcher 发出的 UDP 包。
+- watcher 或 LaunchAgent plist 使用了 `--transport udp`、`--udp-host 255.255.255.255`、`--udp-port 37650`，没有仍然停留在 `--port auto` 的 USB 参数。
+
 ## Yellow Appears Late
 
 The watcher should keep the serial port open. If another script repeatedly

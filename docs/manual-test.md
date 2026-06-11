@@ -58,7 +58,33 @@ busy       cyan/blue/purple/magenta comet chase
 attention  amber double pulse
 ```
 
-## 3. Test The Watcher Without USB
+## 3. Test Wi-Fi UDP States
+
+如果灯条刷入了启用 Wi-Fi 的 `LedStripStatus` 固件，并且 Mac 与 ESP32-C3 在同一个 2.4GHz Wi-Fi / 局域网内，可以直接广播状态到 `255.255.255.255:37650`：
+
+```bash
+python3 - <<'PY'
+import socket
+import time
+
+target = ("255.255.255.255", 37650)
+states = [("idle", 4), ("busy", 12), ("attention", 6), ("idle", 4)]
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+try:
+    for state, seconds in states:
+        sock.sendto((state + "\n").encode("utf-8"), target)
+        print("sent", state)
+        time.sleep(seconds)
+finally:
+    sock.close()
+PY
+```
+
+如果无反应，先确认 ESP32-C3 已连上 2.4GHz Wi-Fi，路由器没有禁用局域网广播，Mac 防火墙没有拦截 Python 发出的 UDP 包。
+
+## 4. Test The Watcher Without USB
 
 ```bash
 python3 tools/codex_desktop_usb_light.py --once --dry-run
@@ -67,7 +93,7 @@ python3 tools/codex_desktop_usb_light.py --once --dry-run
 This prints the state inferred from Codex Desktop logs without sending anything
 to the ESP32.
 
-## 4. Test The Watcher With USB
+## 5. Test The Watcher With USB
 
 ```bash
 python3 tools/codex_desktop_usb_light.py --port auto
