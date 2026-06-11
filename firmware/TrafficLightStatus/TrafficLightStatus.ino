@@ -19,8 +19,10 @@ USBCDC USBSerial;
 
 const bool ACTIVE_LOW = false;
 const unsigned long STATUS_BLINK_MS = 1200;
+const unsigned long HOST_COMMAND_TIMEOUT_MS = 120000;
 
 Status currentStatus = Status::Idle;
+unsigned long lastCommandAt = 0;
 
 Stream *commandInput = &Serial;
 
@@ -52,12 +54,13 @@ void showStatus(Status status, unsigned long now) {
   setLights(lights.red, lights.yellow, lights.green);
 }
 
-void applyStatus(Status parsed) {
+void applyStatus(Status parsed, unsigned long now) {
   if (parsed == Status::Unknown) {
     return;
   }
 
   currentStatus = parsed;
+  lastCommandAt = now;
   Serial.printf("status changed: %s\n", statusToText(parsed));
 }
 
@@ -70,7 +73,7 @@ void readCommandFrom(Stream &input) {
     if (ch == '\n' || ch == '\r') {
       if (index > 0) {
         buffer[index] = '\0';
-        applyStatus(parseStatus(buffer));
+        applyStatus(parseStatus(buffer), millis());
         index = 0;
       }
       continue;
@@ -102,11 +105,11 @@ void setup() {
 
   Serial.begin(115200);
   setupCommandInput();
-  applyStatus(Status::Idle);
+  applyStatus(Status::Idle, millis());
 }
 
 void loop() {
   unsigned long now = millis();
   readCommandFrom(*commandInput);
-  showStatus(currentStatus, now);
+  showStatus(resolveStatusWithCommandTimeout(currentStatus, lastCommandAt, now, HOST_COMMAND_TIMEOUT_MS), now);
 }
