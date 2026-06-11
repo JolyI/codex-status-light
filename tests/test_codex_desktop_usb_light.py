@@ -15,6 +15,7 @@ from tools.codex_desktop_usb_light import (
     main,
     PersistentUsbStateSender,
     read_rollout_file_state,
+    UdpStateSender,
 )
 
 
@@ -353,7 +354,52 @@ class DesktopRolloutStateTests(unittest.TestCase):
             self.assertEqual(get_rollout_desktop_state(root, now=100.0, active_window_seconds=999999), "busy")
 
 
+class FakeUdpSocket:
+    def __init__(self):
+        self.options = []
+        self.sent = []
+        self.closed = False
+
+    def setsockopt(self, level, option, value):
+        self.options.append((level, option, value))
+
+    def sendto(self, payload, target):
+        self.sent.append((payload, target))
+
+    def close(self):
+        self.closed = True
+
+
+class UdpStateSenderTests(unittest.TestCase):
+    def test_sends_newline_terminated_state_to_configured_target(self):
+        fake_socket = FakeUdpSocket()
+        sender = UdpStateSender(
+            host="192.168.1.255",
+            port=37650,
+            socket_factory=lambda *_args: fake_socket,
+        )
+
+        sender.send("busy")
+
+        self.assertEqual(fake_socket.sent, [(b"busy\n", ("192.168.1.255", 37650))])
+
+    def test_enables_broadcast_for_default_lan_broadcast_host(self):
+        fake_socket = FakeUdpSocket()
+        sender = UdpStateSender(socket_factory=lambda *_args: fake_socket)
+
+        sender.send("idle")
+
+        self.assertTrue(any(option[2] == 1 for option in fake_socket.options))
+
+    def test_rejects_unsupported_state(self):
+        sender = UdpStateSender(socket_factory=lambda *_args: FakeUdpSocket())
+
+        with self.assertRaises(ValueError):
+            sender.send("rainbow")
+
+
 class DesktopUsbLightCliTests(unittest.TestCase):
+
     def test_persistent_usb_sender_keeps_one_open_handle(self):
         writes = []
         closes = []

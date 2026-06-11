@@ -4,6 +4,7 @@ import argparse
 import fcntl
 import glob
 import json
+import socket
 import sqlite3
 import struct
 import subprocess
@@ -525,6 +526,31 @@ class PersistentUsbStateSender:
             return
         self.handle.close()
         self.handle = None
+
+
+DEFAULT_UDP_HOST = "255.255.255.255"
+DEFAULT_UDP_PORT = 37650
+
+
+class UdpStateSender:
+    def __init__(
+        self,
+        host: str = DEFAULT_UDP_HOST,
+        port: int = DEFAULT_UDP_PORT,
+        socket_factory=socket.socket,
+    ):
+        self.host = host
+        self.port = port
+        self.socket = socket_factory(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    def send(self, state: str) -> None:
+        if state not in VISIBLE_STATES:
+            raise ValueError(f"Unsupported state: {state}")
+        self.socket.sendto(f"{state}\n".encode("utf-8"), (self.host, self.port))
+
+    def close(self) -> None:
+        self.socket.close()
 
 
 def build_parser() -> argparse.ArgumentParser:
