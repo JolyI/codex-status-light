@@ -646,7 +646,7 @@ def main(argv=None, sender=None, udp_sender_factory=UdpStateSender) -> int:
                     try:
                         send(args.port, state, baud_rate=args.baud_rate)
                     except Exception as exc:
-                        print(f"usb send failed: {exc}", file=sys.stderr, flush=True)
+                        print(f"state send failed: {exc}", file=sys.stderr, flush=True)
                         time.sleep(max(args.poll_seconds, 1.0))
                         continue
                 last_sent_state = state

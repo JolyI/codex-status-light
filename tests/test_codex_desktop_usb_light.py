@@ -4,7 +4,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 
 from tools.codex_desktop_usb_light import (
     DesktopStateMachine,
@@ -541,6 +541,38 @@ class DesktopUsbLightCliTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertIn("idle", output.getvalue())
+
+    def test_send_failure_log_uses_transport_neutral_message(self):
+        attempts = []
+
+        def flaky_sender(_port, _state, baud_rate=115200):
+            attempts.append(baud_rate)
+            if len(attempts) == 1:
+                raise RuntimeError("boom")
+
+        with tempfile.TemporaryDirectory() as root:
+            missing_db = f"{root}/logs/missing.sqlite"
+            missing_sessions = f"{root}/sessions"
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                code = main(
+                    [
+                        "--logs-db",
+                        missing_db,
+                        "--sessions-dir",
+                        missing_sessions,
+                        "--once",
+                        "--poll-seconds",
+                        "0",
+                    ],
+                    sender=flaky_sender,
+                )
+
+            self.assertEqual(code, 0)
+            self.assertIn("state send failed", stderr.getvalue())
+            self.assertNotIn("usb send failed", stderr.getvalue())
 
     def test_resends_unchanged_state_when_interval_elapses(self):
         sent = []

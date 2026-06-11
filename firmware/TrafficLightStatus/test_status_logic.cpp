@@ -24,6 +24,11 @@ int main() {
   assert(busyLater.yellow);
   assert(!busyLater.green);
 
+  assert(resolveStatusWithCommandTimeout(Status::Busy, 1000, 1500, 1000) == Status::Busy);
+  assert(resolveStatusWithCommandTimeout(Status::Busy, 1000, 2501, 1000) == Status::Idle);
+  assert(resolveStatusWithCommandTimeout(Status::Attention, 1000, 2501, 1000) == Status::Idle);
+  assert(resolveStatusWithCommandTimeout(Status::Idle, 1000, 2501, 1000) == Status::Idle);
+
   char text[] = "  thinking\r\n";
   trimInPlace(text);
   assert(std::strcmp(text, "thinking") == 0);

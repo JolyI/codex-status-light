@@ -95,3 +95,15 @@ inline LightState resolveStatusLights(Status status, unsigned long now, unsigned
 
   return {false, false, false};
 }
+
+inline Status resolveStatusWithCommandTimeout(
+    Status status,
+    unsigned long lastCommandAt,
+    unsigned long now,
+    unsigned long commandTimeoutMs) {
+  if (status == Status::Idle || commandTimeoutMs == 0) {
+    return status;
+  }
+
+  return now - lastCommandAt > commandTimeoutMs ? Status::Idle : status;
+}
