@@ -33,6 +33,16 @@ USBCDC USBSerial;
 #define BUSY_TRAIL_LENGTH 16
 #define HOST_COMMAND_TIMEOUT_MS 120000UL
 
+enum class LightPalette {
+  SongCeladon,
+  DunhuangMineral,
+  InkWash,
+  PalaceVermilion,
+};
+
+// 先把 L/M/N/O 四套国风方案都保留在固件里；看腻时只改这里就能换当前方案。
+const LightPalette ACTIVE_LIGHT_PALETTE = LightPalette::DunhuangMineral;
+
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 Status currentStatus = Status::Idle;
 unsigned long lastCommandAt = 0;
@@ -58,6 +68,13 @@ void showSolid(uint8_t red, uint8_t green, uint8_t blue) {
 void clearStrip() {
   strip.clear();
   strip.show();
+}
+
+void setScaledPixel(uint8_t index, uint8_t red, uint8_t green, uint8_t blue, uint8_t amount, uint8_t total = BUSY_TRAIL_LENGTH) {
+  uint8_t scaledRed = (static_cast<uint16_t>(red) * amount) / total;
+  uint8_t scaledGreen = (static_cast<uint16_t>(green) * amount) / total;
+  uint8_t scaledBlue = (static_cast<uint16_t>(blue) * amount) / total;
+  strip.setPixelColor(index, strip.gamma32(strip.Color(scaledRed, scaledGreen, scaledBlue)));
 }
 
 const char *statusToText(Status status) {
@@ -175,23 +192,86 @@ void setupCommandInput() {
 }
 
 void showIdle(unsigned long now) {
-  uint8_t phase = (now / 120) % 32;
-  uint8_t wave = phase < 16 ? phase : 31 - phase;
-  uint8_t pulse = 7 + wave;
-  showSolid(0, pulse, pulse / 2);
+  uint8_t phase = (now / 125) % 40;
+  uint8_t wave = phase < 20 ? phase : 39 - phase;
+
+  switch (ACTIVE_LIGHT_PALETTE) {
+    case LightPalette::SongCeladon:
+      showSolid(6 + wave / 4, 14 + wave, 12 + wave / 2);
+      break;
+    case LightPalette::DunhuangMineral:
+      showSolid(3 + wave / 6, 8 + wave, 22 + wave * 2);
+      break;
+    case LightPalette::InkWash:
+      showSolid(8 + wave / 2, 10 + wave / 2, 11 + wave / 2);
+      break;
+    case LightPalette::PalaceVermilion:
+      showSolid(18 + wave, 5 + wave / 4, 4 + wave / 5);
+      break;
+  }
 }
 
 void showBusy(unsigned long now) {
   strip.clear();
-  uint8_t head = (now / 75) % LED_COUNT;
-  uint16_t drift = (now * 8) % 5000;
+  uint8_t head = (now / 70) % LED_COUNT;
 
   for (uint8_t offset = 0; offset < BUSY_TRAIL_LENGTH && offset < LED_COUNT; offset++) {
     uint8_t index = (head + LED_COUNT - offset) % LED_COUNT;
-    uint16_t hue = 32768 + drift + offset * 1700;
-    uint8_t value = 28 + ((BUSY_TRAIL_LENGTH - offset) * 140) / BUSY_TRAIL_LENGTH;
-    uint8_t saturation = offset == 0 ? 70 : 215 + offset * 2;
-    strip.setPixelColor(index, strip.gamma32(strip.ColorHSV(hue, saturation, value)));
+    uint8_t fade = BUSY_TRAIL_LENGTH - offset;
+
+    if (offset == 0) {
+      switch (ACTIVE_LIGHT_PALETTE) {
+        case LightPalette::SongCeladon:
+          strip.setPixelColor(index, strip.gamma32(strip.Color(235, 255, 248)));
+          break;
+        case LightPalette::DunhuangMineral:
+          strip.setPixelColor(index, strip.gamma32(strip.Color(255, 241, 184)));
+          break;
+        case LightPalette::InkWash:
+          strip.setPixelColor(index, strip.gamma32(strip.Color(248, 244, 232)));
+          break;
+        case LightPalette::PalaceVermilion:
+          strip.setPixelColor(index, strip.gamma32(strip.Color(255, 242, 194)));
+          break;
+      }
+      continue;
+    }
+
+    switch (ACTIVE_LIGHT_PALETTE) {
+      case LightPalette::SongCeladon: {
+        uint8_t shimmer = ((now / 95 + offset * 2) % 7 == 0) ? 14 : 0;
+        uint8_t red = 8 + (fade * 70) / BUSY_TRAIL_LENGTH;
+        uint8_t green = 16 + (fade * 135) / BUSY_TRAIL_LENGTH;
+        uint8_t blue = 14 + (fade * 116) / BUSY_TRAIL_LENGTH + shimmer;
+        strip.setPixelColor(index, strip.gamma32(strip.Color(red, green, blue)));
+        break;
+      }
+      case LightPalette::DunhuangMineral: {
+        uint8_t band = offset < 5 ? 0 : offset < 9 ? 1 : offset < 13 ? 2 : 3;
+        uint8_t baseRed = band == 0 ? 45 : band == 1 ? 21 : band == 2 ? 194 : 214;
+        uint8_t baseGreen = band == 0 ? 212 : band == 1 ? 94 : band == 2 ? 65 : 166;
+        uint8_t baseBlue = band == 0 ? 191 : band == 1 ? 117 : band == 2 ? 12 : 52;
+        // M 的“尾巴状态”：按距离逐级衰减，像鎏金头灯拖着矿物色彗尾。
+        setScaledPixel(index, baseRed, baseGreen, baseBlue, fade);
+        break;
+      }
+      case LightPalette::InkWash: {
+        uint8_t shimmer = ((now / 110 + offset * 3) % 8 == 0) ? 10 : 0;
+        uint8_t red = 8 + (fade * 82) / BUSY_TRAIL_LENGTH;
+        uint8_t green = 10 + (fade * 103) / BUSY_TRAIL_LENGTH;
+        uint8_t blue = 10 + (fade * 106) / BUSY_TRAIL_LENGTH + shimmer;
+        strip.setPixelColor(index, strip.gamma32(strip.Color(red, green, blue)));
+        break;
+      }
+      case LightPalette::PalaceVermilion: {
+        uint8_t shimmer = ((now / 100 + offset * 2) % 7 == 0) ? 14 : 0;
+        uint8_t red = 18 + (fade * 150) / BUSY_TRAIL_LENGTH + shimmer;
+        uint8_t green = 4 + (fade * 64) / BUSY_TRAIL_LENGTH;
+        uint8_t blue = 4 + (fade * 18) / BUSY_TRAIL_LENGTH;
+        strip.setPixelColor(index, strip.gamma32(strip.Color(red, green, blue)));
+        break;
+      }
+    }
   }
   strip.show();
 }
@@ -199,9 +279,21 @@ void showBusy(unsigned long now) {
 void showAttention(unsigned long now) {
   uint8_t phase = (now / 120) % 10;
   bool pulse = phase < 2 || (phase >= 4 && phase < 6);
-  uint8_t red = pulse ? 120 : 12;
-  uint8_t green = pulse ? 48 : 4;
-  showSolid(red, green, 0);
+
+  switch (ACTIVE_LIGHT_PALETTE) {
+    case LightPalette::SongCeladon:
+      showSolid(pulse ? 162 : 10, pulse ? 45 : 4, pulse ? 2 : 0);
+      break;
+    case LightPalette::DunhuangMineral:
+      showSolid(pulse ? 190 : 16, pulse ? 78 : 6, pulse ? 4 : 0);
+      break;
+    case LightPalette::InkWash:
+      showSolid(pulse ? 150 : 9, pulse ? 22 : 2, pulse ? 22 : 2);
+      break;
+    case LightPalette::PalaceVermilion:
+      showSolid(pulse ? 210 : 18, pulse ? 92 : 6, pulse ? 8 : 0);
+      break;
+  }
 }
 
 void showStatus(unsigned long now) {
